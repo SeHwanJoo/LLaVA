@@ -13,10 +13,21 @@ import torch
 import transformers
 import tokenizers
 
-from llava.utils.constants import IGNORE_INDEX, IMAGE_TOKEN_INDEX, DEFAULT_IMAGE_TOKEN, DEFAULT_IM_START_TOKEN, DEFAULT_IM_END_TOKEN
+from llava.utils.constants import (
+    IGNORE_INDEX,
+    IMAGE_TOKEN_INDEX,
+    DEFAULT_IMAGE_TOKEN,
+    DEFAULT_IM_START_TOKEN,
+    DEFAULT_IM_END_TOKEN,
+)
 from torch.utils.data import Dataset
 from llava.train.llava_trainer import LLaVATrainer
-from llava.utils.config import ModelArguments, DataArguments, TrainingArguments, ImageEncoderArguments
+from llava.utils.config import (
+    ModelArguments,
+    DataArguments,
+    TrainingArguments,
+    ImageEncoderArguments,
+)
 
 from llava.utils import conversation as conversation_lib
 from llava.model import *
@@ -27,11 +38,15 @@ from omegaconf import DictConfig
 from transformers.trainer_utils import set_seed
 
 from packaging import version
-IS_TOKENIZER_GREATER_THAN_0_14 = version.parse(tokenizers.__version__) >= version.parse('0.14')
+
+IS_TOKENIZER_GREATER_THAN_0_14 = version.parse(tokenizers.__version__) >= version.parse(
+    "0.14"
+)
 
 
-def _tokenize_fn(strings: Sequence[str],
-                 tokenizer: transformers.PreTrainedTokenizer) -> Dict:
+def _tokenize_fn(
+    strings: Sequence[str], tokenizer: transformers.PreTrainedTokenizer
+) -> Dict:
     """Tokenize a list of strings."""
     tokenized_list = [
         tokenizer(
@@ -40,11 +55,10 @@ def _tokenize_fn(strings: Sequence[str],
             padding="longest",
             max_length=tokenizer.model_max_length,
             truncation=True,
-        ) for text in strings
+        )
+        for text in strings
     ]
-    input_ids = labels = [
-        tokenized.input_ids[0] for tokenized in tokenized_list
-    ]
+    input_ids = labels = [tokenized.input_ids[0] for tokenized in tokenized_list]
     input_ids_lens = labels_lens = [
         tokenized.input_ids.ne(tokenizer.pad_token_id).sum().item()
         for tokenized in tokenized_list
@@ -64,7 +78,7 @@ def _mask_targets(target, tokenized_lens, speakers):
     target[:cur_idx] = IGNORE_INDEX
     for tokenized_len, speaker in zip(tokenized_lens, speakers):
         if speaker == "human":
-            target[cur_idx+2:cur_idx + tokenized_len] = IGNORE_INDEX
+            target[cur_idx + 2 : cur_idx + tokenized_len] = IGNORE_INDEX
         cur_idx += tokenized_len
 
 
@@ -80,43 +94,48 @@ def _add_speaker_and_signal(header, source, get_conversation=True):
         elif from_str.lower() == "gpt":
             from_str = conversation_lib.default_conversation.roles[1]
         else:
-            from_str = 'unknown'
-        sentence["value"] = (BEGIN_SIGNAL + from_str + ": " +
-                             sentence["value"] + END_SIGNAL)
+            from_str = "unknown"
+        sentence["value"] = (
+            BEGIN_SIGNAL + from_str + ": " + sentence["value"] + END_SIGNAL
+        )
         if get_conversation:
             conversation += sentence["value"]
     conversation += BEGIN_SIGNAL
     return conversation
 
 
-def preprocess_multimodal(
-    sources: Sequence[str],
-    data_args: DataArguments
-) -> Dict:
+def preprocess_multimodal(sources: Sequence[str], data_args: DataArguments) -> Dict:
     is_multimodal = data_args.is_multimodal
     if not is_multimodal:
         return sources
 
     for source in sources:
         for sentence in source:
-            if DEFAULT_IMAGE_TOKEN in sentence['value']:
-                sentence['value'] = sentence['value'].replace(DEFAULT_IMAGE_TOKEN, '').strip()
-                sentence['value'] = DEFAULT_IMAGE_TOKEN + '\n' + sentence['value']
-                sentence['value'] = sentence['value'].strip()
+            if DEFAULT_IMAGE_TOKEN in sentence["value"]:
+                sentence["value"] = (
+                    sentence["value"].replace(DEFAULT_IMAGE_TOKEN, "").strip()
+                )
+                sentence["value"] = DEFAULT_IMAGE_TOKEN + "\n" + sentence["value"]
+                sentence["value"] = sentence["value"].strip()
                 if "mmtag" in conversation_lib.default_conversation.version:
-                    sentence['value'] = sentence['value'].replace(DEFAULT_IMAGE_TOKEN, '<Image>' + DEFAULT_IMAGE_TOKEN + '</Image>')
+                    sentence["value"] = sentence["value"].replace(
+                        DEFAULT_IMAGE_TOKEN,
+                        "<Image>" + DEFAULT_IMAGE_TOKEN + "</Image>",
+                    )
             replace_token = DEFAULT_IMAGE_TOKEN
             if data_args.mm_use_im_start_end:
-                replace_token = DEFAULT_IM_START_TOKEN + replace_token + DEFAULT_IM_END_TOKEN
-            sentence["value"] = sentence["value"].replace(DEFAULT_IMAGE_TOKEN, replace_token)
+                replace_token = (
+                    DEFAULT_IM_START_TOKEN + replace_token + DEFAULT_IM_END_TOKEN
+                )
+            sentence["value"] = sentence["value"].replace(
+                DEFAULT_IMAGE_TOKEN, replace_token
+            )
 
     return sources
 
 
 def preprocess_llama_2(
-    sources,
-    tokenizer: transformers.PreTrainedTokenizer,
-    has_image: bool = False
+    sources, tokenizer: transformers.PreTrainedTokenizer, has_image: bool = False
 ) -> Dict:
     conv = conversation_lib.default_conversation.copy()
     roles = {"human": conv.roles[0], "gpt": conv.roles[1]}
@@ -138,7 +157,13 @@ def preprocess_llama_2(
     # Tokenize conversations
 
     if has_image:
-        input_ids = torch.stack([tokenizer_image_token(prompt, tokenizer, return_tensors='pt') for prompt in conversations], dim=0)
+        input_ids = torch.stack(
+            [
+                tokenizer_image_token(prompt, tokenizer, return_tensors="pt")
+                for prompt in conversations
+            ],
+            dim=0,
+        )
     else:
         input_ids = tokenizer(
             conversations,
@@ -196,9 +221,7 @@ def preprocess_llama_2(
 
 
 def preprocess_v1(
-    sources,
-    tokenizer: transformers.PreTrainedTokenizer,
-    has_image: bool = False
+    sources, tokenizer: transformers.PreTrainedTokenizer, has_image: bool = False
 ) -> Dict:
     conv = conversation_lib.default_conversation.copy()
     roles = {"human": conv.roles[0], "gpt": conv.roles[1]}
@@ -220,7 +243,13 @@ def preprocess_v1(
     # Tokenize conversations
 
     if has_image:
-        input_ids = torch.stack([tokenizer_image_token(prompt, tokenizer, return_tensors='pt') for prompt in conversations], dim=0)
+        input_ids = torch.stack(
+            [
+                tokenizer_image_token(prompt, tokenizer, return_tensors="pt")
+                for prompt in conversations
+            ],
+            dim=0,
+        )
     else:
         input_ids = tokenizer(
             conversations,
@@ -282,9 +311,7 @@ def preprocess_v1(
 
 
 def preprocess_mpt(
-    sources,
-    tokenizer: transformers.PreTrainedTokenizer,
-    has_image: bool = False
+    sources, tokenizer: transformers.PreTrainedTokenizer, has_image: bool = False
 ) -> Dict:
     conv = conversation_lib.default_conversation.copy()
     roles = {"human": conv.roles[0], "gpt": conv.roles[1]}
@@ -306,7 +333,13 @@ def preprocess_mpt(
     # Tokenize conversations
 
     if has_image:
-        input_ids = torch.stack([tokenizer_image_token(prompt, tokenizer, return_tensors='pt') for prompt in conversations], dim=0)
+        input_ids = torch.stack(
+            [
+                tokenizer_image_token(prompt, tokenizer, return_tensors="pt")
+                for prompt in conversations
+            ],
+            dim=0,
+        )
     else:
         input_ids = tokenizer(
             conversations,
@@ -325,9 +358,11 @@ def preprocess_mpt(
         total_len = int(target.ne(tokenizer.pad_token_id).sum())
 
         rounds = conversation.split(conv.sep)
-        re_rounds = [conv.sep.join(rounds[:3])] # system + user + gpt
+        re_rounds = [conv.sep.join(rounds[:3])]  # system + user + gpt
         for conv_idx in range(3, len(rounds), 2):
-            re_rounds.append(conv.sep.join(rounds[conv_idx:conv_idx+2]))    # user + gpt
+            re_rounds.append(
+                conv.sep.join(rounds[conv_idx : conv_idx + 2])
+            )  # user + gpt
         cur_len = 0
         target[:cur_len] = IGNORE_INDEX
         for i, rou in enumerate(re_rounds):
@@ -346,7 +381,11 @@ def preprocess_mpt(
                 round_len = len(tokenizer(rou).input_ids)
                 instruction_len = len(tokenizer(parts[0]).input_ids) - 1
 
-            if i != 0 and getattr(tokenizer, 'legacy', False) and IS_TOKENIZER_GREATER_THAN_0_14:
+            if (
+                i != 0
+                and getattr(tokenizer, "legacy", False)
+                and IS_TOKENIZER_GREATER_THAN_0_14
+            ):
                 round_len += 1
                 instruction_len += 1
 
@@ -377,15 +416,22 @@ def preprocess_plain(
     conversations = []
     for source in sources:
         assert len(source) == 2
-        assert DEFAULT_IMAGE_TOKEN in source[0]['value']
-        source[0]['value'] = DEFAULT_IMAGE_TOKEN
-        conversation = source[0]['value'] + source[1]['value'] + conversation_lib.default_conversation.sep
+        assert DEFAULT_IMAGE_TOKEN in source[0]["value"]
+        source[0]["value"] = DEFAULT_IMAGE_TOKEN
+        conversation = (
+            source[0]["value"]
+            + source[1]["value"]
+            + conversation_lib.default_conversation.sep
+        )
         conversations.append(conversation)
     # tokenize conversations
-    input_ids = [tokenizer_image_token(prompt, tokenizer, return_tensors='pt') for prompt in conversations]
+    input_ids = [
+        tokenizer_image_token(prompt, tokenizer, return_tensors="pt")
+        for prompt in conversations
+    ]
     targets = copy.deepcopy(input_ids)
     for target, source in zip(targets, sources):
-        tokenized_len = len(tokenizer_image_token(source[0]['value'], tokenizer))
+        tokenized_len = len(tokenizer_image_token(source[0]["value"], tokenizer))
         target[:tokenized_len] = IGNORE_INDEX
 
     return dict(input_ids=input_ids, labels=targets)
@@ -394,7 +440,7 @@ def preprocess_plain(
 def preprocess(
     sources: Sequence[str],
     tokenizer: transformers.PreTrainedTokenizer,
-    has_image: bool = False
+    has_image: bool = False,
 ) -> Dict:
     """
     Given a list of sources, each is a conversation list. This transform:
@@ -403,9 +449,15 @@ def preprocess(
     3. Tokenize the concatenated conversation;
     4. Make a deepcopy as the target. Mask human words with IGNORE_INDEX.
     """
-    if conversation_lib.default_conversation.sep_style == conversation_lib.SeparatorStyle.PLAIN:
+    if (
+        conversation_lib.default_conversation.sep_style
+        == conversation_lib.SeparatorStyle.PLAIN
+    ):
         return preprocess_plain(sources, tokenizer)
-    if conversation_lib.default_conversation.sep_style == conversation_lib.SeparatorStyle.LLAMA_2:
+    if (
+        conversation_lib.default_conversation.sep_style
+        == conversation_lib.SeparatorStyle.LLAMA_2
+    ):
         return preprocess_llama_2(sources, tokenizer, has_image=has_image)
     if conversation_lib.default_conversation.version.startswith("v1"):
         return preprocess_v1(sources, tokenizer, has_image=has_image)
@@ -417,12 +469,16 @@ def preprocess(
         header = f"{conversation_lib.default_conversation.system}\n\n"
         conversation = _add_speaker_and_signal(header, source)
         conversations.append(conversation)
+
     # tokenize conversations
     def get_tokenize_len(prompts):
         return [len(tokenizer_image_token(prompt, tokenizer)) for prompt in prompts]
 
     if has_image:
-        input_ids = [tokenizer_image_token(prompt, tokenizer, return_tensors='pt') for prompt in conversations]
+        input_ids = [
+            tokenizer_image_token(prompt, tokenizer, return_tensors="pt")
+            for prompt in conversations
+        ]
     else:
         conversations_tokenized = _tokenize_fn(conversations, tokenizer)
         input_ids = conversations_tokenized["input_ids"]
@@ -432,7 +488,9 @@ def preprocess(
         if has_image:
             tokenized_lens = get_tokenize_len([header] + [s["value"] for s in source])
         else:
-            tokenized_lens = _tokenize_fn([header] + [s["value"] for s in source], tokenizer)["input_ids_lens"]
+            tokenized_lens = _tokenize_fn(
+                [header] + [s["value"] for s in source], tokenizer
+            )["input_ids_lens"]
         speakers = [sentence["from"] for sentence in source]
         _mask_targets(target, tokenized_lens, speakers)
 

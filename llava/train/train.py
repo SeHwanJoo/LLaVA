@@ -30,7 +30,11 @@ from llava.dataset import make_supervised_data_module
 
 
 CONFIG_DIR = os.environ.get("OP_CONFIG_DIR") or "../../configs"
-@hydra.main(config_path=CONFIG_DIR, config_name="experiments/example", version_base="1.3")
+
+
+@hydra.main(
+    config_path=CONFIG_DIR, config_name="experiments/example", version_base="1.3"
+)
 def train(config):
     global local_rank
     config = config.experiments
@@ -48,12 +52,10 @@ def train(config):
         training_args, model_args, data_args
     )
 
-    data_module = make_supervised_data_module(tokenizer=tokenizer,
-                                              data_args=data_args)
-    trainer = LLaVATrainer(model=model,
-                    tokenizer=tokenizer,
-                    args=training_args,
-                    **data_module)
+    data_module = make_supervised_data_module(tokenizer=tokenizer, data_args=data_args)
+    trainer = LLaVATrainer(
+        model=model, tokenizer=tokenizer, args=training_args, **data_module
+    )
 
     if list(pathlib.Path(training_args.output_dir).glob("checkpoint-*")):
         trainer.train(resume_from_checkpoint=True)
@@ -64,4 +66,3 @@ def train(config):
 
 if __name__ == "__main__":
     train()
-    
