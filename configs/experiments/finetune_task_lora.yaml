@@ -1,0 +1,10 @@
+defaults:
+  - /data_args/llava_image
+  - /model_args/liuhaotian_vicuna-13b
+  - /model_args/image_encoder/base
+  - /training_args/finetune_lora
+  - _self_
+
+seed: 1997
+training_args:
+  output_dir: ./checkpoints/llava-v1.5-13b-task-lora

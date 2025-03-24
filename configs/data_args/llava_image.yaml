@@ -1,0 +1,4 @@
+data_type: image_encoder
+data_dir: ./playground/data/LLaVA-Pretrain/images
+data_path: ./playground/data/LLaVA-Pretrain/blip_laion_cc_sbu_558k.json
+lazy_preprocess: True

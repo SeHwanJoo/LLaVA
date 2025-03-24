@@ -172,3 +172,10 @@ cython_debug/
 
 # PyPI configuration file
 .pypirc
+
+# dataset
+playground/
+# hydra log
+outputs/
+# checkpoint
+checkpoint/

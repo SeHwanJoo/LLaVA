@@ -16,11 +16,13 @@
 
 import os
 import copy
+import hydra
 from dataclasses import dataclass, field
 import json
 import logging
 import pathlib
 from typing import Dict, Optional, Sequence, List
+from omegaconf import OmegaConf
 
 import torch
 
@@ -30,12 +32,15 @@ import tokenizers
 from llava.constants import IGNORE_INDEX, IMAGE_TOKEN_INDEX, DEFAULT_IMAGE_TOKEN, DEFAULT_IM_START_TOKEN, DEFAULT_IM_END_TOKEN
 from torch.utils.data import Dataset
 from llava.train.llava_trainer import LLaVATrainer
+from llava.train.config import ModelArguments, DataArguments, TrainingArguments, ImageEncoderArguments
 
 from llava import conversation as conversation_lib
 from llava.model import *
 from llava.mm_utils import tokenizer_image_token
 
 from PIL import Image
+from omegaconf import DictConfig
+from transformers.trainer_utils import set_seed
 
 
 local_rank = None
@@ -48,68 +53,6 @@ def rank0_print(*args):
 
 from packaging import version
 IS_TOKENIZER_GREATER_THAN_0_14 = version.parse(tokenizers.__version__) >= version.parse('0.14')
-
-
-@dataclass
-class ModelArguments:
-    model_name_or_path: Optional[str] = field(default="facebook/opt-125m")
-    version: Optional[str] = field(default="v0")
-    freeze_backbone: bool = field(default=False)
-    tune_mm_mlp_adapter: bool = field(default=False)
-    vision_tower: Optional[str] = field(default=None)
-    mm_vision_select_layer: Optional[int] = field(default=-1)   # default to the last layer
-    pretrain_mm_mlp_adapter: Optional[str] = field(default=None)
-    mm_projector_type: Optional[str] = field(default='linear')
-    mm_use_im_start_end: bool = field(default=False)
-    mm_use_im_patch_token: bool = field(default=True)
-    mm_patch_merge_type: Optional[str] = field(default='flat')
-    mm_vision_select_feature: Optional[str] = field(default="patch")
-
-
-@dataclass
-class DataArguments:
-    data_path: str = field(default=None,
-                           metadata={"help": "Path to the training data."})
-    lazy_preprocess: bool = False
-    is_multimodal: bool = False
-    image_folder: Optional[str] = field(default=None)
-    image_aspect_ratio: str = 'square'
-
-
-@dataclass
-class TrainingArguments(transformers.TrainingArguments):
-    cache_dir: Optional[str] = field(default=None)
-    optim: str = field(default="adamw_torch")
-    remove_unused_columns: bool = field(default=False)
-    freeze_mm_mlp_adapter: bool = field(default=False)
-    mpt_attn_impl: Optional[str] = field(default="triton")
-    model_max_length: int = field(
-        default=512,
-        metadata={
-            "help":
-            "Maximum sequence length. Sequences will be right padded (and possibly truncated)."
-        },
-    )
-    double_quant: bool = field(
-        default=True,
-        metadata={"help": "Compress the quantization statistics through double quantization."}
-    )
-    quant_type: str = field(
-        default="nf4",
-        metadata={"help": "Quantization data type to use. Should be one of `fp4` or `nf4`."}
-    )
-    bits: int = field(
-        default=16,
-        metadata={"help": "How many bits to use."}
-    )
-    lora_enable: bool = False
-    lora_r: int = 64
-    lora_alpha: int = 16
-    lora_dropout: float = 0.05
-    lora_weight_path: str = ""
-    lora_bias: str = "none"
-    mm_projector_lr: Optional[float] = None
-    group_by_modality_length: bool = field(default=False)
 
 
 def maybe_zero_3(param, ignore_status=False, name=None):
@@ -785,12 +728,32 @@ def make_supervised_data_module(tokenizer: transformers.PreTrainedTokenizer,
                 data_collator=data_collator)
 
 
-def train(attn_implementation=None):
-    global local_rank
+def config2argument(config: DictConfig) -> DictConfig:
+    training_args = transformers.HfArgumentParser((TrainingArguments))
+    training_args = training_args.parse_dict(args=config.training_args)[0]
+    data_args = transformers.HfArgumentParser((DataArguments))
+    data_args = data_args.parse_dict(args=config.data_args)[0]
+    model_configs = OmegaConf.to_container(config.model_args, resolve=True)
+    for k, v in config.model_args.image_encoder.items():
+        model_configs[k] = v
+    model_args = transformers.HfArgumentParser((ModelArguments))
+    model_args = model_args.parse_dict(args=model_configs)[0]
+    return training_args, model_args, data_args
 
-    parser = transformers.HfArgumentParser(
-        (ModelArguments, DataArguments, TrainingArguments))
-    model_args, data_args, training_args = parser.parse_args_into_dataclasses()
+CONFIG_DIR = os.environ.get("OP_CONFIG_DIR") or "../../configs"
+@hydra.main(config_path=CONFIG_DIR, config_name="experiments/example", version_base="1.3")
+def train(config):
+    global local_rank
+    print(config)
+    config = config.experiments
+    set_seed(config.seed)
+    os.environ["PYTHONHASHSEED"] = str(config.seed)
+
+    torch.backends.cudnn.benchmark = False
+    torch.backends.cudnn.deterministic = True
+    config.training_args.local_rank = int(os.getenv("LOCAL_RANK", "0"))
+    training_args, model_args, data_args = config2argument(config)
+
     local_rank = training_args.local_rank
     compute_dtype = (torch.float16 if training_args.fp16 else (torch.bfloat16 if training_args.bf16 else torch.float32))
 
@@ -827,7 +790,7 @@ def train(attn_implementation=None):
             model = LlavaLlamaForCausalLM.from_pretrained(
                 model_args.model_name_or_path,
                 cache_dir=training_args.cache_dir,
-                attn_implementation=attn_implementation,
+                attn_implementation=training_args.attn_implementation,
                 torch_dtype=(torch.bfloat16 if training_args.bf16 else None),
                 **bnb_model_from_pretrained_args
             )
@@ -835,7 +798,7 @@ def train(attn_implementation=None):
         model = transformers.LlamaForCausalLM.from_pretrained(
             model_args.model_name_or_path,
             cache_dir=training_args.cache_dir,
-            attn_implementation=attn_implementation,
+            attn_implementation=training_args.attn_implementation,
             torch_dtype=(torch.bfloat16 if training_args.bf16 else None),
             **bnb_model_from_pretrained_args
         )
