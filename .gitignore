@@ -179,3 +179,5 @@ playground/
 outputs/
 # checkpoint
 checkpoint/
+# wandb log
+wandb/
