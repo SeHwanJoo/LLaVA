@@ -13,7 +13,7 @@ from llava.dataset.utils import preprocess, preprocess_multimodal
 from llava.utils.config import DataArguments
 
 
-class LazySupervisedDataset(Dataset):
+class ImageDataset(Dataset):
     """Dataset for supervised fine-tuning."""
 
     def __init__(
@@ -22,7 +22,7 @@ class LazySupervisedDataset(Dataset):
         tokenizer: transformers.PreTrainedTokenizer,
         data_args: DataArguments,
     ):
-        super(LazySupervisedDataset, self).__init__()
+        super(ImageDataset, self).__init__()
         list_data_dict = json.load(open(data_path, "r"))
 
         self.tokenizer = tokenizer

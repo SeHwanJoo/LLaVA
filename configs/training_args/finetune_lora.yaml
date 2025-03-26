@@ -25,3 +25,4 @@ lora_alpha: 256
 mm_projector_lr: 2e-5
 attn_implementation: flash_attention_2
 local_rank: -1
+group_by_modality_length: True

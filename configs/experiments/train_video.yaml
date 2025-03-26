@@ -1,5 +1,7 @@
 defaults:
-  - /data_args/ssv2_video.yaml
+  - /data_args:
+    - ssv2_video.yaml
+    - llava_image.yaml
   - /model_args/lmsys_vicuna-13b
   - /training_args/pretrain
   - _self_

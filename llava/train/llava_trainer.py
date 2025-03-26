@@ -20,6 +20,24 @@ from .utils import (
 )
 
 
+class DatasetWiseBatchSampler(Sampler):
+    def __init__(self, dataset):
+        self.indices_by_dataset = {i: [] for i in range(len(dataset.datasets))}
+        dataset_sizes = [0] + dataset.cumulative_sizes
+
+        for idx in range(len(dataset)):
+            subset_idx = next(i for i in range(len(dataset_sizes) - 1) if dataset_sizes[i] <= idx < dataset_sizes[i + 1])
+            self.indices_by_dataset[subset_idx].append(idx)
+
+        self.indices = sum(self.indices_by_dataset.values(), [])
+
+    def __iter__(self):
+        return iter(self.indices)
+
+    def __len__(self):
+        return len(self.indices)
+
+
 class LengthGroupedSampler(Sampler):
     r"""
     Sampler that samples indices in a way that groups together features of the dataset of roughly the same length while
@@ -65,13 +83,7 @@ class LLaVATrainer(Trainer):
             return None
 
         if self.args.group_by_modality_length:
-            lengths = self.train_dataset.modality_lengths
-            return LengthGroupedSampler(
-                self.args.train_batch_size,
-                world_size=self.args.world_size * self.args.gradient_accumulation_steps,
-                lengths=lengths,
-                group_by_modality=True,
-            )
+            return DatasetWiseBatchSampler(self.train_dataset)
         else:
             return super()._get_train_sampler()
 

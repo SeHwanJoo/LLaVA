@@ -25,3 +25,4 @@ lora_alpha: null
 mm_projector_lr: null
 attn_implementation: flash_attention_2
 local_rank: -1
+group_by_modality_length: True

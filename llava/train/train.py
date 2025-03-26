@@ -40,15 +40,15 @@ def train(config):
     torch.backends.cudnn.benchmark = False
     torch.backends.cudnn.deterministic = True
     config.training_args.local_rank = int(os.getenv("LOCAL_RANK", "0"))
-    training_args, model_args, data_args = config2argument(config)
+    training_args, model_args, data_args_list = config2argument(config)
 
     local_rank = training_args.local_rank
 
-    model, tokenizer, training_args, data_args = prepare_models_args(
-        training_args, model_args, data_args
+    model, tokenizer, training_args, data_args_list = prepare_models_args(
+        training_args, model_args, data_args_list
     )
 
-    data_module = build_dataset(tokenizer=tokenizer, data_args=data_args)
+    data_module = build_dataset(tokenizer=tokenizer, data_args_list=data_args_list)
     trainer = LLaVATrainer(
         model=model, tokenizer=tokenizer, args=training_args, **data_module
     )

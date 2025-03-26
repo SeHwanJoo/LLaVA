@@ -97,3 +97,5 @@ class TrainingArguments(transformers.TrainingArguments):
     mm_projector_lr: Optional[float] = None
     group_by_modality_length: bool = field(default=False)
     attn_implementation: str = "flash_attention_2"
+    group_by_modality_length: bool = True
+

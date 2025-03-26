@@ -278,11 +278,14 @@ def get_modality_length_grouped_indices(
     return [i for megabatch in megabatches for i in megabatch]
 
 
-def config2argument(config: DictConfig) -> DictConfig:
+def config2argument(config: DictConfig) -> Tuple[DictConfig, DictConfig, List[DictConfig]]:
     training_args = transformers.HfArgumentParser((TrainingArguments))
     training_args = training_args.parse_dict(args=config.training_args)[0]
-    data_args = transformers.HfArgumentParser((DataArguments))
-    data_args = data_args.parse_dict(args=config.data_args)[0]
+    data_args_list = []
+    for k, v in config.data_args.items():
+        data_args = transformers.HfArgumentParser((DataArguments))
+        data_args = data_args.parse_dict(args=v)[0]
+        data_args_list.append(data_args)
     model_configs = OmegaConf.to_container(config.model_args, resolve=True)
     video_encoder = transformers.HfArgumentParser((VideoEncoderArguments))
     video_encoder = video_encoder.parse_dict(args=config.model_args.video_encoder)[0]
@@ -292,13 +295,13 @@ def config2argument(config: DictConfig) -> DictConfig:
     model_args = model_args.parse_dict(args=model_configs)[0]
     model_args.video_encoder = video_encoder
     model_args.image_encoder = image_encoder
-    return training_args, model_args, data_args
+    return training_args, model_args, data_args_list
 
 
 def prepare_models_args(
     training_args: TrainingArguments,
     model_args: ModelArguments,
-    data_args: DataArguments,
+    data_args_list: List[DataArguments],
 ) -> Tuple[
     torch.nn.Module, transformers.PreTrainedTokenizer, TrainingArguments, DataArguments
 ]:
@@ -451,8 +454,10 @@ def prepare_models_args(
             elif key == "video_encoder":
                 vision_tower = model.get_video_tower()
             vision_tower.to(dtype=torch.bfloat16 if training_args.bf16 else torch.float16, device=training_args.device)
-            data_args.image_processor = vision_tower.image_processor
-            data_args.is_multimodal = True
+            for data_args in data_args_list:
+                if data_args.data_type == "image" and key == "image_encoder":
+                    data_args.image_processor = vision_tower.image_processor
+                    data_args.is_multimodal = True
 
             getattr(model.config, key).image_aspect_ratio = data_args.image_aspect_ratio
             getattr(model.config, key).tokenizer_padding_side = tokenizer.padding_side
@@ -484,7 +489,9 @@ def prepare_models_args(
 
             if training_args.bits in [4, 8]:
                 model.get_model().mm_projector.to(dtype=compute_dtype, device=training_args.device)
-            getattr(model.config, key).mm_use_start_end = data_args.mm_use_start_end = getattr(model_args, key).mm_use_start_end
+            for args in data_args_list:
+                if key.startswith(args.data_type):
+                    getattr(model.config, key).mm_use_start_end = data_args.mm_use_start_end = getattr(model_args, key).mm_use_start_end
             getattr(model.config, key).mm_projector_lr = training_args.mm_projector_lr
             setattr(training_args, f"mm_use_{key[:2]}_start_end", getattr(model_args, key).mm_use_start_end)
             getattr(model.config, key).mm_use_patch_token = getattr(model_args, key).mm_use_patch_token
@@ -503,7 +510,7 @@ def prepare_models_args(
                 if hasattr(module, "weight"):
                     if training_args.bf16 and module.weight.dtype == torch.float32:
                         module = module.to(torch.bfloat16)
-    return model, tokenizer, training_args, data_args
+    return model, tokenizer, training_args, data_args_list
 
 
 def save_model(
