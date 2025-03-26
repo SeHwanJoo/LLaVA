@@ -1,1 +1,1 @@
-from .image_dataset import make_supervised_data_module
+from .builder import build_dataset

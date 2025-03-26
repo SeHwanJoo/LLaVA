@@ -6,8 +6,12 @@ LOGDIR = "."
 # Model Constants
 IGNORE_INDEX = -100
 IMAGE_TOKEN_INDEX = -200
+VIDEO_TOKEN_INDEX = -300
 DEFAULT_IMAGE_TOKEN = "<image>"
+DEFAULT_VIDEO_TOKEN = "<video>"
 DEFAULT_IMAGE_PATCH_TOKEN = "<im_patch>"
 DEFAULT_IM_START_TOKEN = "<im_start>"
 DEFAULT_IM_END_TOKEN = "<im_end>"
+DEFAULT_VI_START_TOKEN = "<vi_start>"
+DEFAULT_VI_END_TOKEN = "<vi_end>"
 IMAGE_PLACEHOLDER = "<image-placeholder>"

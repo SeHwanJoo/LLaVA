@@ -6,7 +6,7 @@ import math
 import ast
 
 from transformers import StoppingCriteria
-from llava.utils.constants import IMAGE_TOKEN_INDEX
+from llava.utils.constants import IMAGE_TOKEN_INDEX, VIDEO_TOKEN_INDEX
 
 
 def select_best_resolution(original_size, possible_resolutions):
@@ -218,6 +218,34 @@ def tokenizer_image_token(
         input_ids.append(prompt_chunks[0][0])
 
     for x in insert_separator(prompt_chunks, [image_token_index] * (offset + 1)):
+        input_ids.extend(x[offset:])
+
+    if return_tensors is not None:
+        if return_tensors == "pt":
+            return torch.tensor(input_ids, dtype=torch.long)
+        raise ValueError(f"Unsupported tensor type: {return_tensors}")
+    return input_ids
+
+
+def tokenizer_video_token(
+    prompt, tokenizer, video_token_index=VIDEO_TOKEN_INDEX, return_tensors=None
+):
+    prompt_chunks = [tokenizer(chunk).input_ids for chunk in prompt.split("<video>")]
+
+    def insert_separator(X, sep):
+        return [ele for sublist in zip(X, [sep] * len(X)) for ele in sublist][:-1]
+
+    input_ids = []
+    offset = 0
+    if (
+        len(prompt_chunks) > 0
+        and len(prompt_chunks[0]) > 0
+        and prompt_chunks[0][0] == tokenizer.bos_token_id
+    ):
+        offset = 1
+        input_ids.append(prompt_chunks[0][0])
+
+    for x in insert_separator(prompt_chunks, [video_token_index] * (offset + 1)):
         input_ids.extend(x[offset:])
 
     if return_tensors is not None:

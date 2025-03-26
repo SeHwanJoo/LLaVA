@@ -14,31 +14,26 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 
-import os
 import copy
-import hydra
-from dataclasses import dataclass, field
 import json
 import logging
+import os
 import pathlib
-from typing import Dict, Optional, Sequence, List, Tuple
-from omegaconf import OmegaConf
+from dataclasses import dataclass, field
+from typing import Dict, List, Optional, Sequence, Tuple
 
-import torch
-
-import transformers
+import hydra
 import tokenizers
-
-from llava.utils.config import ModelArguments, DataArguments, TrainingArguments
-
-from llava.utils import conversation as conversation_lib
-from llava.model import *
-from llava.utils.mm_utils import tokenizer_image_token
-
-from PIL import Image
-from omegaconf import DictConfig
-from transformers.trainer_utils import set_seed
+import torch
 import transformers
+from omegaconf import DictConfig, OmegaConf
+from PIL import Image
+from transformers.trainer_utils import set_seed
+
+from llava.model import *
+from llava.utils import conversation as conversation_lib
+from llava.utils.config import DataArguments, ModelArguments, TrainingArguments
+from llava.utils.mm_utils import tokenizer_image_token
 
 
 def maybe_zero_3(param, ignore_status=False, name=None):
@@ -476,12 +471,12 @@ def prepare_models_args(
                 dtype=compute_dtype, device=training_args.device
             )
 
-        model.config.mm_use_im_start_end = data_args.mm_use_im_start_end = (
-            model_args.mm_use_im_start_end
+        model.config.mm_use_start_end = data_args.mm_use_start_end = (
+            model_args.mm_use_start_end
         )
         model.config.mm_projector_lr = training_args.mm_projector_lr
-        training_args.use_im_start_end = model_args.mm_use_im_start_end
-        model.config.mm_use_im_patch_token = model_args.mm_use_im_patch_token
+        training_args.use_start_end = model_args.mm_use_start_end
+        model.config.mm_use_patch_token = model_args.mm_use_patch_token
         model.initialize_vision_tokenizer(model_args, tokenizer=tokenizer)
 
     if training_args.bits in [4, 8]:

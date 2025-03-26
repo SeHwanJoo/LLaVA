@@ -15,25 +15,21 @@
 #    limitations under the License.
 
 import os
-import hydra
 import pathlib
 
+import hydra
 import torch
-
-
-from llava.train.llava_trainer import LLaVATrainer
-
-
 from transformers.trainer_utils import set_seed
-from llava.train.utils import config2argument, prepare_models_args, save_model
-from llava.dataset import make_supervised_data_module
 
+from llava.dataset import build_dataset
+from llava.train.llava_trainer import LLaVATrainer
+from llava.train.utils import config2argument, prepare_models_args, save_model
 
 CONFIG_DIR = os.environ.get("OP_CONFIG_DIR") or "../../configs"
 
 
 @hydra.main(
-    config_path=CONFIG_DIR, config_name="experiments/example", version_base="1.3"
+    config_path=CONFIG_DIR, config_name="experiments/train_video", version_base="1.3"
 )
 def train(config):
     global local_rank
@@ -52,7 +48,7 @@ def train(config):
         training_args, model_args, data_args
     )
 
-    data_module = make_supervised_data_module(tokenizer=tokenizer, data_args=data_args)
+    data_module = build_dataset(tokenizer=tokenizer, data_args=data_args)
     trainer = LLaVATrainer(
         model=model, tokenizer=tokenizer, args=training_args, **data_module
     )

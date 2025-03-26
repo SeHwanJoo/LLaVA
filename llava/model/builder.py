@@ -14,22 +14,19 @@
 
 
 import os
-import warnings
 import shutil
+import warnings
 
-from transformers import (
-    AutoTokenizer,
-    AutoModelForCausalLM,
-    AutoConfig,
-    BitsAndBytesConfig,
-)
 import torch
+from transformers import (AutoConfig, AutoModelForCausalLM, AutoTokenizer,
+                          BitsAndBytesConfig)
+
 from llava.model import *
-from llava.utils.constants import (
-    DEFAULT_IMAGE_PATCH_TOKEN,
-    DEFAULT_IM_START_TOKEN,
-    DEFAULT_IM_END_TOKEN,
-)
+from llava.utils.constants import (DEFAULT_IM_END_TOKEN,
+                                   DEFAULT_IM_START_TOKEN,
+                                   DEFAULT_VI_START_TOKEN,
+                                   DEFAULT_VI_END_TOKEN,
+                                   DEFAULT_IMAGE_PATCH_TOKEN)
 
 
 def load_pretrained_model(
@@ -207,13 +204,17 @@ def load_pretrained_model(
     image_processor = None
 
     if "llava" in model_name.lower():
-        mm_use_im_start_end = getattr(model.config, "mm_use_im_start_end", False)
-        mm_use_im_patch_token = getattr(model.config, "mm_use_im_patch_token", True)
-        if mm_use_im_patch_token:
+        mm_use_start_end = getattr(model.config, "mm_use_start_end", False)
+        mm_use_patch_token = getattr(model.config, "mm_use_patch_token", True)
+        if mm_use_patch_token:
             tokenizer.add_tokens([DEFAULT_IMAGE_PATCH_TOKEN], special_tokens=True)
-        if mm_use_im_start_end:
+        if mm_use_start_end:
+            # TODO
             tokenizer.add_tokens(
                 [DEFAULT_IM_START_TOKEN, DEFAULT_IM_END_TOKEN], special_tokens=True
+            )
+            tokenizer.add_tokens(
+                [DEFAULT_VI_START_TOKEN, DEFAULT_VI_END_TOKEN], special_tokens=True
             )
         model.resize_token_embeddings(len(tokenizer))
 

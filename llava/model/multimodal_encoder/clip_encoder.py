@@ -1,7 +1,6 @@
 import torch
 import torch.nn as nn
-
-from transformers import CLIPVisionModel, CLIPImageProcessor, CLIPVisionConfig
+from transformers import CLIPImageProcessor, CLIPVisionConfig, CLIPVisionModel
 
 
 class CLIPVisionTower(nn.Module):
@@ -34,7 +33,7 @@ class CLIPVisionTower(nn.Module):
             self.vision_tower_name
         )
         self.vision_tower = CLIPVisionModel.from_pretrained(
-            self.vision_tower_name, device_map=device_map
+            self.vision_tower_name, device_map=device_map, num_channels=16, ignore_mismatched_sizes=True
         )
         self.vision_tower.requires_grad_(False)
 

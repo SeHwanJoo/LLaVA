@@ -1,43 +1,31 @@
-import os
 import copy
-import hydra
-from dataclasses import dataclass, field
 import json
 import logging
+import os
 import pathlib
-from typing import Dict, Optional, Sequence, List
-from omegaconf import OmegaConf
+from dataclasses import dataclass, field
+from typing import Dict, List, Optional, Sequence
 
-import torch
-
-import transformers
+import hydra
 import tokenizers
-
-from llava.utils.constants import (
-    IGNORE_INDEX,
-    IMAGE_TOKEN_INDEX,
-    DEFAULT_IMAGE_TOKEN,
-    DEFAULT_IM_START_TOKEN,
-    DEFAULT_IM_END_TOKEN,
-)
-from torch.utils.data import Dataset
-from llava.train.llava_trainer import LLaVATrainer
-from llava.utils.config import (
-    ModelArguments,
-    DataArguments,
-    TrainingArguments,
-    ImageEncoderArguments,
-)
-
-from llava.utils import conversation as conversation_lib
-from llava.model import *
-from llava.utils.mm_utils import tokenizer_image_token
-
+import torch
+import transformers
+from omegaconf import DictConfig, OmegaConf
+from packaging import version
 from PIL import Image
-from omegaconf import DictConfig
+from torch.utils.data import Dataset
 from transformers.trainer_utils import set_seed
 
-from packaging import version
+from llava.model import *
+from llava.train.llava_trainer import LLaVATrainer
+from llava.utils import conversation as conversation_lib
+from llava.utils.config import (DataArguments, ImageEncoderArguments,
+                                ModelArguments, TrainingArguments)
+from llava.utils.constants import (DEFAULT_IM_END_TOKEN,
+                                   DEFAULT_IM_START_TOKEN, DEFAULT_IMAGE_TOKEN,
+                                   IGNORE_INDEX, DEFAULT_VIDEO_TOKEN,
+                                   DEFAULT_VI_START_TOKEN, DEFAULT_VI_END_TOKEN)
+from llava.utils.mm_utils import tokenizer_image_token, tokenizer_video_token
 
 IS_TOKENIZER_GREATER_THAN_0_14 = version.parse(tokenizers.__version__) >= version.parse(
     "0.14"
@@ -104,7 +92,8 @@ def _add_speaker_and_signal(header, source, get_conversation=True):
     return conversation
 
 
-def preprocess_multimodal(sources: Sequence[str], data_args: DataArguments) -> Dict:
+def preprocess_multimodal(sources: Sequence[str], data_args: DataArguments,
+                          image: bool = False, video: bool = False) -> Dict:
     is_multimodal = data_args.is_multimodal
     if not is_multimodal:
         return sources
@@ -122,20 +111,42 @@ def preprocess_multimodal(sources: Sequence[str], data_args: DataArguments) -> D
                         DEFAULT_IMAGE_TOKEN,
                         "<Image>" + DEFAULT_IMAGE_TOKEN + "</Image>",
                     )
-            replace_token = DEFAULT_IMAGE_TOKEN
-            if data_args.mm_use_im_start_end:
-                replace_token = (
-                    DEFAULT_IM_START_TOKEN + replace_token + DEFAULT_IM_END_TOKEN
+                
+            elif DEFAULT_VIDEO_TOKEN in sentence["value"]:
+                sentence["value"] = (
+                    sentence["value"].replace(DEFAULT_VIDEO_TOKEN, "").strip()
                 )
-            sentence["value"] = sentence["value"].replace(
-                DEFAULT_IMAGE_TOKEN, replace_token
-            )
+                sentence["value"] = DEFAULT_VIDEO_TOKEN + "\n" + sentence["value"]
+                sentence["value"] = sentence["value"].strip()
+                if "mmtag" in conversation_lib.default_conversation.version:
+                    sentence["value"] = sentence["value"].replace(
+                        DEFAULT_VIDEO_TOKEN,
+                        "<Video>" + DEFAULT_VIDEO_TOKEN + "</Video>",
+                    )
+            if image:
+                replace_token = DEFAULT_IMAGE_TOKEN
+                if data_args.mm_use_start_end:
+                    replace_token = (
+                        DEFAULT_IM_START_TOKEN + replace_token + DEFAULT_IM_END_TOKEN
+                    )
+                sentence["value"] = sentence["value"].replace(
+                    DEFAULT_IMAGE_TOKEN, replace_token
+                )
+            elif video:
+                replace_token = DEFAULT_VIDEO_TOKEN
+                if data_args.mm_use_start_end:
+                    replace_token = (
+                        DEFAULT_VI_START_TOKEN + replace_token + DEFAULT_VI_END_TOKEN
+                    )
+                sentence["value"] = sentence["value"].replace(
+                    DEFAULT_VIDEO_TOKEN, replace_token
+                )
 
     return sources
 
 
 def preprocess_llama_2(
-    sources, tokenizer: transformers.PreTrainedTokenizer, has_image: bool = False
+    sources, tokenizer: transformers.PreTrainedTokenizer, has_image: bool = False, has_video: bool = False
 ) -> Dict:
     conv = conversation_lib.default_conversation.copy()
     roles = {"human": conv.roles[0], "gpt": conv.roles[1]}
@@ -160,6 +171,14 @@ def preprocess_llama_2(
         input_ids = torch.stack(
             [
                 tokenizer_image_token(prompt, tokenizer, return_tensors="pt")
+                for prompt in conversations
+            ],
+            dim=0,
+        )
+    elif has_video:
+        input_ids = torch.stack(
+            [
+                tokenizer_video_token(prompt, tokenizer, return_tensors="pt")
                 for prompt in conversations
             ],
             dim=0,
@@ -197,6 +216,9 @@ def preprocess_llama_2(
             if has_image:
                 round_len = len(tokenizer_image_token(rou, tokenizer))
                 instruction_len = len(tokenizer_image_token(parts[0], tokenizer)) - 2
+            elif has_video:
+                round_len = len(tokenizer_video_token(rou, tokenizer))
+                instruction_len = len(tokenizer_video_token(parts[0], tokenizer)) - 2
             else:
                 round_len = len(tokenizer(rou).input_ids)
                 instruction_len = len(tokenizer(parts[0]).input_ids) - 2
@@ -221,7 +243,7 @@ def preprocess_llama_2(
 
 
 def preprocess_v1(
-    sources, tokenizer: transformers.PreTrainedTokenizer, has_image: bool = False
+    sources, tokenizer: transformers.PreTrainedTokenizer, has_image: bool = False, has_video: bool = False
 ) -> Dict:
     conv = conversation_lib.default_conversation.copy()
     roles = {"human": conv.roles[0], "gpt": conv.roles[1]}
@@ -246,6 +268,14 @@ def preprocess_v1(
         input_ids = torch.stack(
             [
                 tokenizer_image_token(prompt, tokenizer, return_tensors="pt")
+                for prompt in conversations
+            ],
+            dim=0,
+        )
+    elif has_video:
+        input_ids = torch.stack(
+            [
+                tokenizer_video_token(prompt, tokenizer, return_tensors="pt")
                 for prompt in conversations
             ],
             dim=0,
@@ -283,6 +313,9 @@ def preprocess_v1(
             if has_image:
                 round_len = len(tokenizer_image_token(rou, tokenizer))
                 instruction_len = len(tokenizer_image_token(parts[0], tokenizer)) - 2
+            elif has_video:
+                round_len = len(tokenizer_video_token(rou, tokenizer))
+                instruction_len = len(tokenizer_video_token(parts[0], tokenizer)) - 2
             else:
                 round_len = len(tokenizer(rou).input_ids)
                 instruction_len = len(tokenizer(parts[0]).input_ids) - 2
@@ -311,7 +344,7 @@ def preprocess_v1(
 
 
 def preprocess_mpt(
-    sources, tokenizer: transformers.PreTrainedTokenizer, has_image: bool = False
+    sources, tokenizer: transformers.PreTrainedTokenizer, has_image: bool = False, has_video: bool = False
 ) -> Dict:
     conv = conversation_lib.default_conversation.copy()
     roles = {"human": conv.roles[0], "gpt": conv.roles[1]}
@@ -336,6 +369,14 @@ def preprocess_mpt(
         input_ids = torch.stack(
             [
                 tokenizer_image_token(prompt, tokenizer, return_tensors="pt")
+                for prompt in conversations
+            ],
+            dim=0,
+        )
+    elif has_video:
+        input_ids = torch.stack(
+            [
+                tokenizer_video_token(prompt, tokenizer, return_tensors="pt")
                 for prompt in conversations
             ],
             dim=0,
@@ -377,6 +418,9 @@ def preprocess_mpt(
             if has_image:
                 round_len = len(tokenizer_image_token(rou, tokenizer))
                 instruction_len = len(tokenizer_image_token(parts[0], tokenizer)) - 1
+            elif has_video:
+                round_len = len(tokenizer_video_token(rou, tokenizer))
+                instruction_len = len(tokenizer_video_token(parts[0], tokenizer)) - 1
             else:
                 round_len = len(tokenizer(rou).input_ids)
                 instruction_len = len(tokenizer(parts[0]).input_ids) - 1
@@ -411,13 +455,19 @@ def preprocess_mpt(
 def preprocess_plain(
     sources: Sequence[str],
     tokenizer: transformers.PreTrainedTokenizer,
+    has_image: bool = False,
+    has_video: bool = False
 ) -> Dict:
     # add end signal and concatenate together
     conversations = []
     for source in sources:
         assert len(source) == 2
-        assert DEFAULT_IMAGE_TOKEN in source[0]["value"]
-        source[0]["value"] = DEFAULT_IMAGE_TOKEN
+        if has_image:
+            assert DEFAULT_IMAGE_TOKEN in source[0]["value"]
+            source[0]["value"] = DEFAULT_IMAGE_TOKEN
+        elif has_video:
+            assert DEFAULT_VIDEO_TOKEN in source[0]["value"]
+            source[0]["value"] = DEFAULT_VIDEO_TOKEN
         conversation = (
             source[0]["value"]
             + source[1]["value"]
@@ -425,14 +475,33 @@ def preprocess_plain(
         )
         conversations.append(conversation)
     # tokenize conversations
-    input_ids = [
-        tokenizer_image_token(prompt, tokenizer, return_tensors="pt")
-        for prompt in conversations
-    ]
-    targets = copy.deepcopy(input_ids)
-    for target, source in zip(targets, sources):
-        tokenized_len = len(tokenizer_image_token(source[0]["value"], tokenizer))
-        target[:tokenized_len] = IGNORE_INDEX
+    if has_image:
+        input_ids = [
+            tokenizer_image_token(prompt, tokenizer, return_tensors="pt")
+            for prompt in conversations
+        ]
+        targets = copy.deepcopy(input_ids)
+        for target, source in zip(targets, sources):
+            tokenized_len = len(tokenizer_image_token(source[0]["value"], tokenizer))
+            target[:tokenized_len] = IGNORE_INDEX
+    elif has_video:
+        input_ids = [
+            tokenizer_video_token(prompt, tokenizer, return_tensors="pt")
+            for prompt in conversations
+        ]
+        targets = copy.deepcopy(input_ids)
+        for target, source in zip(targets, sources):
+            tokenized_len = len(tokenizer_video_token(source[0]["value"], tokenizer))
+            target[:tokenized_len] = IGNORE_INDEX
+    else:
+        input_ids = [
+            tokenizer_image_token(prompt, tokenizer, return_tensors="pt")
+            for prompt in conversations
+        ]
+        targets = copy.deepcopy(input_ids)
+        for target, source in zip(targets, sources):
+            tokenized_len = len(tokenizer_image_token(source[0]["value"], tokenizer))
+            target[:tokenized_len] = IGNORE_INDEX
 
     return dict(input_ids=input_ids, labels=targets)
 
@@ -441,6 +510,7 @@ def preprocess(
     sources: Sequence[str],
     tokenizer: transformers.PreTrainedTokenizer,
     has_image: bool = False,
+    has_video: bool = False
 ) -> Dict:
     """
     Given a list of sources, each is a conversation list. This transform:
@@ -453,16 +523,16 @@ def preprocess(
         conversation_lib.default_conversation.sep_style
         == conversation_lib.SeparatorStyle.PLAIN
     ):
-        return preprocess_plain(sources, tokenizer)
+        return preprocess_plain(sources, tokenizer, has_image, has_video)
     if (
         conversation_lib.default_conversation.sep_style
         == conversation_lib.SeparatorStyle.LLAMA_2
     ):
-        return preprocess_llama_2(sources, tokenizer, has_image=has_image)
+        return preprocess_llama_2(sources, tokenizer, has_image=has_image, has_video=has_video)
     if conversation_lib.default_conversation.version.startswith("v1"):
-        return preprocess_v1(sources, tokenizer, has_image=has_image)
+        return preprocess_v1(sources, tokenizer, has_image=has_image, has_video=has_video)
     if conversation_lib.default_conversation.version == "mpt":
-        return preprocess_mpt(sources, tokenizer, has_image=has_image)
+        return preprocess_mpt(sources, tokenizer, has_image=has_image, has_video=has_video)
     # add end signal and concatenate together
     conversations = []
     for source in sources:
@@ -472,11 +542,22 @@ def preprocess(
 
     # tokenize conversations
     def get_tokenize_len(prompts):
-        return [len(tokenizer_image_token(prompt, tokenizer)) for prompt in prompts]
+        if has_image:
+            return [len(tokenizer_image_token(prompt, tokenizer)) for prompt in prompts]
+        elif has_video:
+            return [len(tokenizer_video_token(prompt, tokenizer)) for prompt in prompts]
+        else:
+            return [len(tokenizer_image_token(prompt, tokenizer)) for prompt in prompts]
+
 
     if has_image:
         input_ids = [
             tokenizer_image_token(prompt, tokenizer, return_tensors="pt")
+            for prompt in conversations
+        ]
+    elif has_video:
+        input_ids = [
+            tokenizer_video_token(prompt, tokenizer, return_tensors="pt")
             for prompt in conversations
         ]
     else:

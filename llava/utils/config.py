@@ -1,5 +1,6 @@
 from dataclasses import dataclass, field
 from typing import Optional
+
 import transformers
 
 
@@ -25,8 +26,8 @@ class ModelArguments:
     )  # default to the last layer
     pretrain_mm_mlp_adapter: Optional[str] = field(default=None)
     mm_projector_type: Optional[str] = field(default="linear")
-    mm_use_im_start_end: bool = field(default=False)
-    mm_use_im_patch_token: bool = field(default=True)
+    mm_use_start_end: bool = field(default=False)
+    mm_use_patch_token: bool = field(default=True)
     mm_patch_merge_type: Optional[str] = field(default="flat")
     mm_vision_select_feature: Optional[str] = field(default="patch")
     tune_mm_mlp_adapter: bool = field(default=False)
@@ -37,7 +38,7 @@ class ModelArguments:
 @dataclass
 class DataArguments:
     data_type: str = field(
-        default="video_encoder",
+        default="video",
         metadata={"help": 'Type of dataset eg. "image", "video"'},
     )
     data_path: str = field(
@@ -48,6 +49,7 @@ class DataArguments:
     lazy_preprocess: bool = False
     is_multimodal: bool = False
     image_aspect_ratio: str = "square"
+    crop_size: int = -1
 
 
 @dataclass

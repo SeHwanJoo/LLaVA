@@ -1,16 +1,14 @@
-from dataclasses import dataclass, field
 from typing import Dict
-
 import transformers
 
-from .dataset import DataCollatorForSupervisedDataset, LazySupervisedDataset
+from .dataset import DataCollatorForSupervisedDataset, VideoDataset
 
 
-def build_image_data_modules(
+def build_video_data_modules(
     tokenizer: transformers.PreTrainedTokenizer, data_args
 ) -> Dict:
     """Make dataset and collator for supervised fine-tuning."""
-    train_dataset = LazySupervisedDataset(
+    train_dataset = VideoDataset(
         tokenizer=tokenizer, data_path=data_args.data_path, data_args=data_args
     )
     data_collator = DataCollatorForSupervisedDataset(tokenizer=tokenizer)

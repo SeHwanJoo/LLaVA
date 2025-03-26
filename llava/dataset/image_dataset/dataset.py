@@ -1,42 +1,16 @@
-import os
 import copy
-import hydra
-from dataclasses import dataclass, field
 import json
-import logging
-import pathlib
-from typing import Dict, Optional, Sequence, List
-from omegaconf import OmegaConf
+import os
+from dataclasses import dataclass
+from typing import Dict, Sequence
 
 import torch
-
 import transformers
-import tokenizers
-
-from llava.utils.constants import (
-    IGNORE_INDEX,
-    IMAGE_TOKEN_INDEX,
-    DEFAULT_IMAGE_TOKEN,
-    DEFAULT_IM_START_TOKEN,
-    DEFAULT_IM_END_TOKEN,
-)
-from torch.utils.data import Dataset
-from llava.train.llava_trainer import LLaVATrainer
-from llava.utils.config import (
-    ModelArguments,
-    DataArguments,
-    TrainingArguments,
-    ImageEncoderArguments,
-)
-
-from llava.utils import conversation as conversation_lib
-from llava.model import *
-from llava.utils.mm_utils import tokenizer_image_token
-
 from PIL import Image
-from omegaconf import DictConfig
-from transformers.trainer_utils import set_seed
+from torch.utils.data import Dataset
+
 from llava.dataset.utils import preprocess, preprocess_multimodal
+from llava.utils.config import DataArguments
 
 
 class LazySupervisedDataset(Dataset):
@@ -120,7 +94,7 @@ class LazySupervisedDataset(Dataset):
                     "pixel_values"
                 ][0]
             sources = preprocess_multimodal(
-                copy.deepcopy([e["conversations"] for e in sources]), self.data_args
+                copy.deepcopy([e["conversations"] for e in sources]), self.data_args, image=True
             )
         else:
             sources = copy.deepcopy([e["conversations"] for e in sources])

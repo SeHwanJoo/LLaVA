@@ -18,18 +18,18 @@ from abc import ABC, abstractmethod
 import torch
 import torch.nn as nn
 
+from llava.utils.constants import (DEFAULT_IM_END_TOKEN,
+                                   DEFAULT_IM_START_TOKEN,
+                                   DEFAULT_VI_END_TOKEN,
+                                   DEFAULT_VI_START_TOKEN,
+                                   DEFAULT_IMAGE_PATCH_TOKEN,
+                                   IGNORE_INDEX,
+                                   IMAGE_TOKEN_INDEX,
+                                   VIDEO_TOKEN_INDEX)
+from llava.utils.mm_utils import get_anyres_image_grid_shape
+
 from .multimodal_encoder.builder import build_vision_tower
 from .multimodal_projector.builder import build_vision_projector
-
-from llava.utils.constants import (
-    IGNORE_INDEX,
-    IMAGE_TOKEN_INDEX,
-    DEFAULT_IMAGE_PATCH_TOKEN,
-    DEFAULT_IM_START_TOKEN,
-    DEFAULT_IM_END_TOKEN,
-)
-
-from llava.utils.mm_utils import get_anyres_image_grid_shape
 
 
 class LlavaMetaModel:
@@ -263,7 +263,7 @@ class LlavaMetaForCausalLM(ABC):
 
         # TODO: image start / end is not implemented here to support pretraining.
         if getattr(self.config, "tune_mm_mlp_adapter", False) and getattr(
-            self.config, "mm_use_im_start_end", False
+            self.config, "mm_use_start_end", False
         ):
             raise NotImplementedError
 
@@ -300,7 +300,8 @@ class LlavaMetaForCausalLM(ABC):
         new_labels = []
         cur_image_idx = 0
         for batch_idx, cur_input_ids in enumerate(input_ids):
-            num_images = (cur_input_ids == IMAGE_TOKEN_INDEX).sum()
+            # TODO
+            num_images = (cur_input_ids == VIDEO_TOKEN_INDEX).sum()
             if num_images == 0:
                 cur_image_features = image_features[cur_image_idx]
                 cur_input_embeds_1 = self.get_model().embed_tokens(cur_input_ids)
@@ -314,7 +315,7 @@ class LlavaMetaForCausalLM(ABC):
 
             image_token_indices = (
                 [-1]
-                + torch.where(cur_input_ids == IMAGE_TOKEN_INDEX)[0].tolist()
+                + torch.where(cur_input_ids == VIDEO_TOKEN_INDEX)[0].tolist()
                 + [cur_input_ids.shape[0]]
             )
             cur_input_ids_noim = []
@@ -461,13 +462,17 @@ class LlavaMetaForCausalLM(ABC):
         )
 
     def initialize_vision_tokenizer(self, model_args, tokenizer):
-        if model_args.mm_use_im_patch_token:
+        if model_args.mm_use_patch_token:
             tokenizer.add_tokens([DEFAULT_IMAGE_PATCH_TOKEN], special_tokens=True)
             self.resize_token_embeddings(len(tokenizer))
 
-        if model_args.mm_use_im_start_end:
+        if model_args.mm_use_start_end:
+            # TODO
             num_new_tokens = tokenizer.add_tokens(
                 [DEFAULT_IM_START_TOKEN, DEFAULT_IM_END_TOKEN], special_tokens=True
+            )
+            num_new_tokens = tokenizer.add_tokens(
+                [DEFAULT_VI_START_TOKEN, DEFAULT_VI_END_TOKEN], special_tokens=True
             )
             self.resize_token_embeddings(len(tokenizer))
 
@@ -507,7 +512,7 @@ class LlavaMetaForCausalLM(ABC):
                     raise ValueError(
                         f"Unexpected embed_tokens_weight shape. Pretrained: {embed_tokens_weight.shape}. Current: {input_embeddings.shape}. Numer of new tokens: {num_new_tokens}."
                     )
-        elif model_args.mm_use_im_patch_token:
+        elif model_args.mm_use_patch_token:
             if model_args.tune_mm_mlp_adapter:
                 for p in self.get_input_embeddings().parameters():
                     p.requires_grad = False

@@ -1,0 +1,6 @@
+data_type: video
+data_dir: ./playground/data/video/20bn-something-something-v2-mp4
+data_path: ./playground/data/video/something-something-v2_train.json
+lazy_preprocess: True
+num_segment: 16
+crop_size: 336

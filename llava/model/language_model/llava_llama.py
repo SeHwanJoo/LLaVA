@@ -17,19 +17,12 @@ from typing import List, Optional, Tuple, Union
 
 import torch
 import torch.nn as nn
-
-from transformers import (
-    AutoConfig,
-    AutoModelForCausalLM,
-    LlamaConfig,
-    LlamaModel,
-    LlamaForCausalLM,
-)
-
-from transformers.modeling_outputs import CausalLMOutputWithPast
+from transformers import (AutoConfig, AutoModelForCausalLM, LlamaConfig,
+                          LlamaForCausalLM, LlamaModel)
 from transformers.generation.utils import GenerateOutput
+from transformers.modeling_outputs import CausalLMOutputWithPast
 
-from ..llava_arch import LlavaMetaModel, LlavaMetaForCausalLM
+from ..llava_arch import LlavaMetaForCausalLM, LlavaMetaModel
 
 
 class LlavaConfig(LlamaConfig):
@@ -71,10 +64,12 @@ class LlavaLlamaForCausalLM(LlamaForCausalLM, LlavaMetaForCausalLM):
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
         images: Optional[torch.FloatTensor] = None,
+        video: Optional[torch.FloatTensor] = None,
         image_sizes: Optional[List[List[int]]] = None,
         return_dict: Optional[bool] = None,
     ) -> Union[Tuple, CausalLMOutputWithPast]:
-
+        if video is not None:
+            images = video
         if inputs_embeds is None:
             (
                 input_ids,
