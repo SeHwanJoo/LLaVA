@@ -217,9 +217,15 @@ class LLaVATrainer(Trainer):
 
             if self.args.local_rank == 0 or self.args.local_rank == -1:
                 self.model.config.save_pretrained(output_dir)
-                torch.save(
-                    weight_to_save, os.path.join(output_dir, f"mm_projector.bin")
-                )
+                if self.model.config.image_encoder is not None:
+                    torch.save(
+                        weight_to_save, os.path.join(output_dir, f"image_mm_projector.bin")
+                    )
+                if self.model.config.video_encoder is not None:
+                    torch.save(
+                        weight_to_save, os.path.join(output_dir, f"video_mm_projector.bin")
+                    )
+
         else:
             super(LLaVATrainer, self)._save_checkpoint(model, trial, metrics)
 

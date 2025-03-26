@@ -148,14 +148,23 @@ def load_pretrained_model(
                 model = LlavaLlamaForCausalLM.from_pretrained(
                     model_base, low_cpu_mem_usage=True, config=cfg_pretrained, **kwargs
                 )
+            if cfg_pretrained.image_encoder is not None:
+                mm_image_projector_weights = torch.load(
+                    os.path.join(model_path, "image_mm_projector.bin"), map_location="cpu"
+                )
+                mm_image_projector_weights = {
+                    k: v.to(torch.float16) for k, v in mm_image_projector_weights.items()
+                }
+                model.load_state_dict(mm_image_projector_weights, strict=False)
+            if cfg_pretrained.video_encoder is not None:
+                mm_video_projector_weights = torch.load(
+                    os.path.join(model_path, "video_mm_projector.bin"), map_location="cpu"
+                )
+                mm_video_projector_weights = {
+                    k: v.to(torch.float16) for k, v in mm_video_projector_weights.items()
+                }
+                model.load_state_dict(mm_video_projector_weights, strict=False)
 
-            mm_projector_weights = torch.load(
-                os.path.join(model_path, "mm_projector.bin"), map_location="cpu"
-            )
-            mm_projector_weights = {
-                k: v.to(torch.float16) for k, v in mm_projector_weights.items()
-            }
-            model.load_state_dict(mm_projector_weights, strict=False)
         else:
             if "mpt" in model_name.lower():
                 tokenizer = AutoTokenizer.from_pretrained(model_path, use_fast=True)
@@ -218,12 +227,17 @@ def load_pretrained_model(
             )
         model.resize_token_embeddings(len(tokenizer))
 
-        vision_tower = model.get_vision_tower()
-        if not vision_tower.is_loaded:
-            vision_tower.load_model(device_map=device_map)
+        video_tower = model.get_video_tower()
+        if not video_tower.is_loaded:
+            video_tower.load_model(device_map=device_map)
         if device_map != "auto":
-            vision_tower.to(device=device_map, dtype=torch.float16)
-        image_processor = vision_tower.image_processor
+            video_tower.to(device=device_map, dtype=torch.float16)
+        image_tower = model.get_video_tower()
+        if not image_tower.is_loaded:
+            image_tower.load_model(device_map=device_map)
+        if device_map != "auto":
+            image_tower.to(device=device_map, dtype=torch.float16)
+        image_processor = image_tower.image_processor
 
     if hasattr(model.config, "max_sequence_length"):
         context_len = model.config.max_sequence_length

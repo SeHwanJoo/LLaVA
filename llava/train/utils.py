@@ -32,7 +32,7 @@ from transformers.trainer_utils import set_seed
 
 from llava.model import *
 from llava.utils import conversation as conversation_lib
-from llava.utils.config import DataArguments, ModelArguments, TrainingArguments
+from llava.utils.config import DataArguments, ModelArguments, TrainingArguments, VideoEncoderArguments, ImageEncoderArguments
 from llava.utils.mm_utils import tokenizer_image_token
 
 
@@ -284,10 +284,14 @@ def config2argument(config: DictConfig) -> DictConfig:
     data_args = transformers.HfArgumentParser((DataArguments))
     data_args = data_args.parse_dict(args=config.data_args)[0]
     model_configs = OmegaConf.to_container(config.model_args, resolve=True)
-    for k, v in config.model_args.image_encoder.items():
-        model_configs[k] = v
+    video_encoder = transformers.HfArgumentParser((VideoEncoderArguments))
+    video_encoder = video_encoder.parse_dict(args=config.model_args.video_encoder)[0]
+    image_encoder = transformers.HfArgumentParser((ImageEncoderArguments))
+    image_encoder = image_encoder.parse_dict(args=config.model_args.image_encoder)[0]
     model_args = transformers.HfArgumentParser((ModelArguments))
     model_args = model_args.parse_dict(args=model_configs)[0]
+    model_args.video_encoder = video_encoder
+    model_args.image_encoder = image_encoder
     return training_args, model_args, data_args
 
 
@@ -326,7 +330,8 @@ def prepare_models_args(
             )
         )
 
-    if model_args.vision_tower is not None:
+    if model_args.image_encoder is not None \
+        or model_args.video_encoder is not None:
         if "mpt" in model_args.model_name_or_path:
             config = transformers.AutoConfig.from_pretrained(
                 model_args.model_name_or_path, trust_remote_code=True
@@ -434,50 +439,56 @@ def prepare_models_args(
             conversation_lib.default_conversation = conversation_lib.conv_templates[
                 "vicuna_v1"
             ]
-
-    if model_args.vision_tower is not None:
-        model.get_model().initialize_vision_modules(
-            model_args=model_args, fsdp=training_args.fsdp
-        )
-
-        vision_tower = model.get_vision_tower()
-        vision_tower.to(
-            dtype=torch.bfloat16 if training_args.bf16 else torch.float16,
-            device=training_args.device,
-        )
-
-        data_args.image_processor = vision_tower.image_processor
-        data_args.is_multimodal = True
-
-        model.config.image_aspect_ratio = data_args.image_aspect_ratio
-        model.config.tokenizer_padding_side = tokenizer.padding_side
-        model.config.tokenizer_model_max_length = tokenizer.model_max_length
-
-        model.config.tune_mm_mlp_adapter = training_args.tune_mm_mlp_adapter = (
-            model_args.tune_mm_mlp_adapter
-        )
-        if model_args.tune_mm_mlp_adapter:
-            model.requires_grad_(False)
-            for p in model.get_model().mm_projector.parameters():
-                p.requires_grad = True
-
-        model.config.freeze_mm_mlp_adapter = training_args.freeze_mm_mlp_adapter
-        if training_args.freeze_mm_mlp_adapter:
-            for p in model.get_model().mm_projector.parameters():
-                p.requires_grad = False
-
-        if training_args.bits in [4, 8]:
-            model.get_model().mm_projector.to(
-                dtype=compute_dtype, device=training_args.device
+    for key in ["image_encoder", "video_encoder"]:
+        if getattr(model_args, key) is not None:
+            model.get_model().initialize_vision_modules(
+                model_args=model_args,
+                key=key,
+                fsdp=training_args.fsdp
             )
+            if key == "image_encoder":
+                vision_tower = model.get_image_tower()
+            elif key == "video_encoder":
+                vision_tower = model.get_video_tower()
+            vision_tower.to(dtype=torch.bfloat16 if training_args.bf16 else torch.float16, device=training_args.device)
+            data_args.image_processor = vision_tower.image_processor
+            data_args.is_multimodal = True
 
-        model.config.mm_use_start_end = data_args.mm_use_start_end = (
-            model_args.mm_use_start_end
-        )
-        model.config.mm_projector_lr = training_args.mm_projector_lr
-        training_args.use_start_end = model_args.mm_use_start_end
-        model.config.mm_use_patch_token = model_args.mm_use_patch_token
-        model.initialize_vision_tokenizer(model_args, tokenizer=tokenizer)
+            getattr(model.config, key).image_aspect_ratio = data_args.image_aspect_ratio
+            getattr(model.config, key).tokenizer_padding_side = tokenizer.padding_side
+            getattr(model.config, key).tokenizer_model_max_length = tokenizer.model_max_length
+
+            getattr(model.config, key).tune_mm_mlp_adapter = training_args.tune_mm_mlp_adapter = getattr(model_args, key).tune_mm_mlp_adapter
+            if getattr(model_args, key).tune_mm_mlp_adapter:
+                model.requires_grad_(False)
+                if key == "image_encoder":
+                    for p in model.get_model().image_mm_projector.parameters():
+                        p.requires_grad = True
+                elif key == "video_encoder":
+                    for p in model.get_model().video_mm_projector.parameters():
+                        p.requires_grad = True
+                else:
+                    raise NotImplementedError
+
+            getattr(model.config, key).freeze_mm_mlp_adapter = training_args.freeze_mm_mlp_adapter
+            if training_args.freeze_mm_mlp_adapter:
+                if key == "image_encoder":
+                    for p in model.get_model().image_mm_projector.parameters():
+                        p.requires_grad = False
+                elif key == "video_encoder":
+                    for p in model.get_model().video_mm_projector.parameters():
+                        p.requires_grad = False
+                else:
+                    raise NotImplementedError
+
+
+            if training_args.bits in [4, 8]:
+                model.get_model().mm_projector.to(dtype=compute_dtype, device=training_args.device)
+            getattr(model.config, key).mm_use_start_end = data_args.mm_use_start_end = getattr(model_args, key).mm_use_start_end
+            getattr(model.config, key).mm_projector_lr = training_args.mm_projector_lr
+            setattr(training_args, f"mm_use_{key[:2]}_start_end", getattr(model_args, key).mm_use_start_end)
+            getattr(model.config, key).mm_use_patch_token = getattr(model_args, key).mm_use_patch_token
+            model.initialize_vision_tokenizer(getattr(model_args, key), tokenizer=tokenizer)
 
     if training_args.bits in [4, 8]:
         from peft.tuners.lora import LoraLayer

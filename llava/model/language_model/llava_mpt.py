@@ -76,11 +76,12 @@ class LlavaMptForCausalLM(MptForCausalLM, LlavaMetaForCausalLM):
         output_hidden_states: Optional[bool] = None,
         return_dict: Optional[bool] = None,
         images=None,
+        video=None,
     ):
 
         input_ids, attention_mask, past_key_values, inputs_embeds, labels = (
             self.prepare_inputs_labels_for_multimodal(
-                input_ids, attention_mask, past_key_values, labels, images
+                input_ids, attention_mask, past_key_values, labels, images, video
             )
         )
 

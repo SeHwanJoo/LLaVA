@@ -33,7 +33,7 @@ class CLIPVisionTower(nn.Module):
             self.vision_tower_name
         )
         self.vision_tower = CLIPVisionModel.from_pretrained(
-            self.vision_tower_name, device_map=device_map, num_channels=16, ignore_mismatched_sizes=True
+            self.vision_tower_name, device_map=device_map
         )
         self.vision_tower.requires_grad_(False)
 

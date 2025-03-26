@@ -1,5 +1,6 @@
 defaults:
   - image_encoder: base
+  - video_encoder: base
   - _self_
 
 model_name_or_path: lmsys/vicuna-13b-v1.5
