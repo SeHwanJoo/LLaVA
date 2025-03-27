@@ -141,11 +141,15 @@
   - **Before:** No support for video datasets and multi-datasets configurations.
   - **After**: Added support for **video datasets** and modificate dataset for **scalability**.
 
+  **note: multi-type dataset is not supported**
+  
+  eg) video dataset and image dataset
+
   Managed by configs
   ```yaml
     - /data_args:
       - ssv2_video.yaml
-      - llava_image.yaml
+      - ssv2_video_2.yaml
   ```
   ```sh
   configs/data_args/
@@ -286,7 +290,7 @@
 ---
 
 # Future works
-- **Efficient Adapter**: Currently, only LoRA is supported, but various adapter methods such as DoRA and MoRA are actively being researched. The framework should be extended to suport multiple adapter types while maintain flexible configuration.
+- **Efficient Adapter**: AS-IS, only LoRA is supported, but various adapter methods such as DoRA and MoRA are actively being researched. The framework should be extended to suport multiple adapter types while maintain flexible configuration.
 - **Feature Project**: AS-IS, extracted image and video features are processed independently. However, to enable joint learning across modalities - including image, video, audio, etc - the framework should be modified to allow seamless intergration of these features.
 - **Time Embedding**: Video preprocessing extracts frames based on fixed segments sizes. But, since video durations vary, segmenting by time intervals could be more effective. Incoporating time embeddings could provide benefits similar to positional embeddins enabling better temporal understanding. This approach would also allow handling long videos by segmenting and embedding them.
 - **Code Refinement & CleanUp**: The project lacks a standardized code convention, requiring significant refactoring. Unnecessary files should be removed.

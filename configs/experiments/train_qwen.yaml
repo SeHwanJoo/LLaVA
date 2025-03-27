@@ -1,7 +1,6 @@
 defaults:
   - /data_args:
     - ssv2_video.yaml
-    - llava_image.yaml
   - /model_args/qwen2.5-1.5b
   - /training_args/pretrain
   - _self_

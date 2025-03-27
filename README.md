@@ -41,7 +41,7 @@ This repository provides an implementation of a Vision-Language Model (VLM) for 
 
 1. Clone this repository and navigate to LLaVA folder
 ```sh
-git clone https://github.com/haotian-liu/LLaVA.git
+git clone https://github.com/SeHwanJoo/LLaVA.git
 cd LLaVA
 ```
 
@@ -137,23 +137,20 @@ There are various ways to train the model. The following are methods that utiliz
 <details> 
 <summary>detailed explanation</summary>
 
-1. Training with images only
+1. Training with images
 ```sh
 deepspeed --no_local_rank llava/train/train.py --config-name=experiments/pretrain
 ```
-2. Training with videos only
+2. Training with videos
 ```sh
 deepspeed --no_local_rank llava/train/train.py --config-name=experiments/pretrain_video
 ```
-3. Training with both images and videos
-```sh
-deepspeed --no_local_rank llava/train/train.py --config-name=experiments/train_video_image
 ```
-4. Training with the Phi base model
+3. Training the Phi base model with video
 ```sh
 deepspeed --no_local_rank llava/train/train.py --config-name=experiments/train_phi
 ```
-5. Training with the Qwen base model
+4. Training the Qwen base model with video
 ```sh
 deepspeed --no_local_rank llava/train/train.py --config-name=experiments/train_qwen
 ```
