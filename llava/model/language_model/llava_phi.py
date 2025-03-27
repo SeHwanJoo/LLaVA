@@ -13,30 +13,29 @@
 #    limitations under the License.
 
 import torch.nn as nn
-from transformers import (AutoConfig, AutoModelForCausalLM, LlamaConfig,
-                          LlamaForCausalLM, LlamaModel)
+from transformers import (AutoConfig, AutoModelForCausalLM, Phi3Config,
+                          Phi3ForCausalLM, Phi3Model)
 
 from ..llava_arch import LlavaMetaForCausalLM, LlavaMetaModel, setup_model_functions
 
 
-class LlavaConfig(LlamaConfig):
-    model_type = "llava_llama"
+class LlavaPhiConfig(Phi3Config):
+    model_type = "llava_phi3"
 
 
-class LlavaLlamaModel(LlavaMetaModel, LlamaModel):
-    config_class = LlavaConfig
+class LlavaLlamaModel(LlavaMetaModel, Phi3Model):
+    config_class = LlavaPhiConfig
 
-    def __init__(self, config: LlamaConfig):
+    def __init__(self, config: Phi3Config):
         super(LlavaLlamaModel, self).__init__(config)
 
 
-class LlavaLlamaForCausalLM(LlamaForCausalLM, LlavaMetaForCausalLM):
-    config_class = LlavaConfig
+class LlavaPhiForCausalLM(Phi3ForCausalLM, LlavaMetaForCausalLM):
+    config_class = LlavaPhiConfig
 
     def __init__(self, config):
-        super(LlamaForCausalLM, self).__init__(config)
+        super(Phi3ForCausalLM, self).__init__(config)
         self.model = LlavaLlamaModel(config)
-        self.pretraining_tp = config.pretraining_tp
         self.vocab_size = config.vocab_size
         self.lm_head = nn.Linear(config.hidden_size, config.vocab_size, bias=False)
         setup_model_functions(self)
@@ -48,5 +47,5 @@ class LlavaLlamaForCausalLM(LlamaForCausalLM, LlavaMetaForCausalLM):
         return self.model
 
 
-AutoConfig.register("llava_llama", LlavaConfig)
-AutoModelForCausalLM.register(LlavaConfig, LlavaLlamaForCausalLM)
+AutoConfig.register("llava_phi3", LlavaPhiConfig)
+AutoModelForCausalLM.register(LlavaPhiConfig, LlavaPhiForCausalLM)

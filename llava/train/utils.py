@@ -31,6 +31,7 @@ from PIL import Image
 from transformers.trainer_utils import set_seed
 
 from llava.model import *
+from llava.model import LlavaQwen2ForCausalLM, LlavaLlamaForCausalLM, LlavaPhiForCausalLM
 from llava.utils import conversation as conversation_lib
 from llava.utils.config import DataArguments, ModelArguments, TrainingArguments, VideoEncoderArguments, ImageEncoderArguments
 from llava.utils.mm_utils import tokenizer_image_token
@@ -334,7 +335,7 @@ def prepare_models_args(
         )
 
     if model_args.image_encoder is not None \
-        or model_args.video_encoder is not None:
+        and model_args.video_encoder is not None:
         if "mpt" in model_args.model_name_or_path:
             config = transformers.AutoConfig.from_pretrained(
                 model_args.model_name_or_path, trust_remote_code=True
@@ -347,7 +348,8 @@ def prepare_models_args(
                 **bnb_model_from_pretrained_args,
             )
         else:
-            model = LlavaLlamaForCausalLM.from_pretrained(
+            CausalLM = eval(model_args.class_name)
+            model = CausalLM.from_pretrained(
                 model_args.model_name_or_path,
                 cache_dir=training_args.cache_dir,
                 attn_implementation=training_args.attn_implementation,
@@ -433,6 +435,11 @@ def prepare_models_args(
     elif model_args.version == "v0.5":
         tokenizer.pad_token = tokenizer.unk_token
     else:
+        smart_tokenizer_and_embedding_resize(
+            special_tokens_dict=dict(unk_token="[UNK]"),
+            tokenizer=tokenizer,
+            model=model
+        )
         tokenizer.pad_token = tokenizer.unk_token
         if model_args.version in conversation_lib.conv_templates:
             conversation_lib.default_conversation = conversation_lib.conv_templates[
