@@ -1,0 +1,12 @@
+defaults:
+  - /data_args:
+    - ssv2_video.yaml
+    - llava_image.yaml
+  - /model_args/qwen2.5-1.5b
+  - /training_args/pretrain
+  - _self_
+
+seed: 1997
+training_args:
+  output_dir: ./checkpoints/llava-v1.5-qwen-pretrain-video
+  per_device_train_batch_size: 16

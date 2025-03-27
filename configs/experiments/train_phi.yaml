@@ -2,11 +2,11 @@ defaults:
   - /data_args:
     - ssv2_video.yaml
     - llava_image.yaml
-  - /model_args/lmsys_vicuna-13b
+  - /model_args/phi4mini
   - /training_args/pretrain
   - _self_
 
 seed: 1997
 training_args:
-  output_dir: ./checkpoints/llava-v1.5-13b-pretrain-video
-  per_device_train_batch_size: 16
+  output_dir: ./checkpoints/llava-v1.5-phi-pretrain-video
+  per_device_train_batch_size: 8
