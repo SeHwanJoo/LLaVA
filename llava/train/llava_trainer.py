@@ -18,6 +18,9 @@ from .utils import (
     get_modality_length_grouped_indices,
     get_length_grouped_indices,
 )
+import copy
+from dataclasses import is_dataclass
+from omegaconf import DictConfig
 
 
 class DatasetWiseBatchSampler(Sampler):
@@ -219,7 +222,7 @@ class LLaVATrainer(Trainer):
             output_dir = os.path.join(run_dir, checkpoint_folder)
 
             # Only save Adapter
-            keys_to_match = ["mm_projector", "vision_resampler"]
+            keys_to_match = ["image_mm_projector", "video_mm_projector", "vision_resampler"]
             if getattr(self.args, "use_im_start_end", False):
                 keys_to_match.extend(["embed_tokens", "embed_in"])
 
@@ -228,7 +231,12 @@ class LLaVATrainer(Trainer):
             )
 
             if self.args.local_rank == 0 or self.args.local_rank == -1:
-                self.model.config.save_pretrained(output_dir)
+                new_config = copy.deepcopy(self.model.config)
+                for key, value in self.model.config.to_dict().items():
+                    if isinstance(value, DictConfig):
+                        setattr(new_config, key, dict(value))
+
+                new_config.save_pretrained(output_dir)
                 if self.model.config.image_encoder is not None:
                     torch.save(
                         weight_to_save, os.path.join(output_dir, f"image_mm_projector.bin")

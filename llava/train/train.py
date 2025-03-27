@@ -29,7 +29,7 @@ CONFIG_DIR = os.environ.get("OP_CONFIG_DIR") or "../../configs"
 
 
 @hydra.main(
-    config_path=CONFIG_DIR, config_name="experiments/train_video", version_base="1.3"
+    config_path=CONFIG_DIR, config_name="experiments/pretrain", version_base="1.3"
 )
 def train(config):
     global local_rank

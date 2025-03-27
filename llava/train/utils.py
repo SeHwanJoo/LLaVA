@@ -130,7 +130,11 @@ def safe_save_model_for_hf_trainer(trainer: transformers.Trainer, output_dir: st
         weight_to_save = get_mm_adapter_state_maybe_zero_3(
             trainer.model.named_parameters(), keys_to_match
         )
-        trainer.model.config.save_pretrained(output_dir)
+        new_config = copy.deepcopy(trainer.model.config)
+        for key, value in trainer.model.config.to_dict().items():
+            if isinstance(value, DictConfig):
+                setattr(new_config, key, dict(value))
+        new_config.save_pretrained(output_dir)
 
         current_folder = output_dir.split("/")[-1]
         parent_folder = os.path.dirname(output_dir)

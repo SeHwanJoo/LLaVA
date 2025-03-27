@@ -178,6 +178,6 @@ playground/
 # hydra log
 outputs/
 # checkpoint
-checkpoint/
+checkpoints/
 # wandb log
 wandb/
