@@ -1,0 +1,114 @@
+[
+  {
+    "id": "1",
+    "video": "108961.mp4",
+    "conversations": [
+      {
+        "from": "human",
+        "value": "Describe this video.\n<video>"
+      },
+      {
+        "from": "gpt",
+        "value": "Turning the camera left while filming [something]"
+      }
+    ]
+  },
+  {
+    "id": "2",
+    "video": "182588.mp4",
+    "conversations": [
+      {
+        "from": "human",
+        "value": "Describe this video.\n<video>"
+      },
+      {
+        "from": "gpt",
+        "value": "Approaching [something] with your camera"
+      }
+    ]
+  },
+  {
+    "id": "3",
+    "video": "163614.mp4",
+    "conversations": [
+      {
+        "from": "human",
+        "value": "Describe this video.\n<video>"
+      },
+      {
+        "from": "gpt",
+        "value": "Picking [something] up"
+      }
+    ]
+  },
+  {
+    "id": "4",
+    "video": "181593.mp4",
+    "conversations": [
+      {
+        "from": "human",
+        "value": "Describe this video.\n<video>"
+      },
+      {
+        "from": "gpt",
+        "value": "Pretending to take [something] from [somewhere]"
+      }
+    ]
+  },
+  {
+    "id": "5",
+    "video": "185769.mp4",
+    "conversations": [
+      {
+        "from": "human",
+        "value": "Describe this video.\n<video>"
+      },
+      {
+        "from": "gpt",
+        "value": "Dropping [something] onto [something]"
+      }
+    ]
+  },
+  {
+    "id": "6",
+    "video": "115013.mp4",
+    "conversations": [
+      {
+        "from": "human",
+        "value": "Describe this video.\n<video>"
+      },
+      {
+        "from": "gpt",
+        "value": "Pretending to sprinkle air onto [something]"
+      }
+    ]
+  },
+  {
+    "id": "7",
+    "video": "31011.mp4",
+    "conversations": [
+      {
+        "from": "human",
+        "value": "Describe this video.\n<video>"
+      },
+      {
+        "from": "gpt",
+        "value": "Moving [something] towards the camera"
+      }
+    ]
+  },
+  {
+    "id": "8",
+    "video": "142958.mp4",
+    "conversations": [
+      {
+        "from": "human",
+        "value": "Describe this video.\n<video>"
+      },
+      {
+        "from": "gpt",
+        "value": "Putting [something] into [something]"
+      }
+    ]
+  }
+]

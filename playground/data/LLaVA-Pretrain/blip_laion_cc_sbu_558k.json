@@ -1,0 +1,142 @@
+[
+  {
+    "id": "004539375",
+    "image": "00453/004539375.jpg",
+    "conversations": [
+      {
+        "from": "human",
+        "value": "Render a clear and concise summary of the photo.\n<image>"
+      },
+      {
+        "from": "gpt",
+        "value": "select luxury furniture 3 - inch gel memory foam mattress topper"
+      }
+    ]
+  },
+  {
+    "id": "002239345",
+    "image": "00223/002239345.jpg",
+    "conversations": [
+      {
+        "from": "human",
+        "value": "Write a terse but informative summary of the picture.\n<image>"
+      },
+      {
+        "from": "gpt",
+        "value": "a grey watch with an army style strap"
+      }
+    ]
+  },
+  {
+    "id": "005947502",
+    "image": "00594/005947502.jpg",
+    "conversations": [
+      {
+        "from": "human",
+        "value": "<image>\nWhat is this?"
+      },
+      {
+        "from": "gpt",
+        "value": "a dragon kite flying in the blue sky stock images"
+      }
+    ]
+  },
+  {
+    "id": "005116462",
+    "image": "00511/005116462.jpg",
+    "conversations": [
+      {
+        "from": "human",
+        "value": "<image>\nRender a clear and concise summary of the photo."
+      },
+      {
+        "from": "gpt",
+        "value": "$ 10 - cute cheap printed mini dress - khaki multicolor striped floral print peasant short sleeve tunic"
+      }
+    ]
+  },
+  {
+    "id": "002017886",
+    "image": "00201/002017886.jpg",
+    "conversations": [
+      {
+        "from": "human",
+        "value": "What is in the photo?\n<image>"
+      },
+      {
+        "from": "gpt",
+        "value": "augmented reality using aruco markers in opencv"
+      }
+    ]
+  },
+  {
+    "id": "001819539",
+    "image": "00181/001819539.jpg",
+    "conversations": [
+      {
+        "from": "human",
+        "value": "Describe the image concisely.\n<image>"
+      },
+      {
+        "from": "gpt",
+        "value": "a pair of childrens boots in the shape of knitted shoes"
+      }
+    ]
+  },
+  {
+    "id": "002838027",
+    "image": "00283/002838027.jpg",
+    "conversations": [
+      {
+        "from": "human",
+        "value": "Share a concise interpretation of the image provided.\n<image>"
+      },
+      {
+        "from": "gpt",
+        "value": "floral watercolor clip art rose flower border with pink"
+      }
+    ]
+  },
+  {
+    "id": "000406392",
+    "image": "00040/000406392.jpg",
+    "conversations": [
+      {
+        "from": "human",
+        "value": "Give a brief description of the image.\n<image>"
+      },
+      {
+        "from": "gpt",
+        "value": "the divine queen in her elaborate masks canvas print featuring the face and hands of a woman with red hair"
+      }
+    ]
+  },
+  {
+    "id": "006288475",
+    "image": "00628/006288475.jpg",
+    "conversations": [
+      {
+        "from": "human",
+        "value": "<image>\nWhat is this?"
+      },
+      {
+        "from": "gpt",
+        "value": "an aerial view of paris at night from a plane stock photo"
+      }
+    ]
+  },
+  {
+    "id": "000075539",
+    "image": "00007/000075539.jpg",
+    "conversations": [
+      {
+        "from": "human",
+        "value": "Give a brief description of the image.\n<image>"
+      },
+      {
+        "from": "gpt",
+        "value": "the nike air trainer low in desert tan and black"
+      }
+    ]
+  }
+]
